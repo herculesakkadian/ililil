@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8" />
+<title>فتح نوافذ متعددة مع تحكم كامل</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    direction: rtl;
+    padding: 20px;
+    background: #f5f5f5;
+  }
+  label {
+    display: block;
+    margin-top: 10px;
+  }
+  input[type="text"], input[type="number"] {
+    padding: 8px;
+    width: 300px;
+    max-width: 100%;
+    margin-top: 5px;
+  }
+  button {
+    margin-top: 15px;
+    padding: 10px 20px;
+    font-weight: bold;
+    cursor: pointer;
+  }
+  #framesContainer {
+    margin-top: 20px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    background: white;
+    padding: 10px;
+    border: 1px solid #ddd;
+  }
+  .frame-wrapper {
+    position: relative;
+    border: 1px solid #ccc;
+    background: #fafafa;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 5px;
+    box-sizing: border-box;
+  }
+  iframe {
+    border: 1px solid #999;
+  }
+  .controls {
+    margin-top: 5px;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    gap: 5px;
+  }
+  .controls input[type="text"] {
+    flex-grow: 1;
+    font-size: 12px;
+  }
+  .controls button {
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+  #status {
+    margin-top: 20px;
+    font-weight: bold;
+  }
+  #closeAllBtn {
+    background-color: #d9534f;
+    color: white;
+    border: none;
+  }
+  #startBtn {
+    background-color: #0275d8;
+    color: white;
+    border: none;
+  }
+</style>
+</head>
+<body>
+  <h1>فتح نوافذ متعددة مع تحكم كامل</h1>
+
+  <label>رابط الموقع:
+    <input type="text" id="url" placeholder="https://example.com" value="https://example.com" />
+  </label>
+
+  <label>عدد النوافذ الكلي:
+    <input type="number" id="totalCount" min="1" value="10" />
+  </label>
+
+  <label>حجم الدفعة (عدد النوافذ تفتح مرة واحدة):
+    <input type="number" id="batchSize" min="1" max="50" value="5" />
+  </label>
+
+  <label>مدة الانتظار بين الدُفعات (بالثواني):
+    <input type="number" id="waitTime" min="1" value="3" />
+  </label>
+
+  <label>عرض النافذة (بالبكسل):
+    <input type="number" id="iframeWidth" min="50" value="250" />
+  </label>
+
+  <label>ارتفاع النافذة (بالبكسل):
+    <input type="number" id="iframeHeight" min="50" value="150" />
+  </label>
+
+  <button id="startBtn">ابدأ الفتح</button>
+  <button id="closeAllBtn" style="display:none;">أغلق جميع النوافذ</button>
+
+  <div id="status"></div>
+  <div id="framesContainer"></div>
+
+<script>
+  const startBtn = document.getElementById('startBtn');
+  const closeAllBtn = document.getElementById('closeAllBtn');
+  const statusDiv = document.getElementById('status');
+  const framesContainer = document.getElementById('framesContainer');
+
+  let currentCount = 0;
+  let timer = null;
+
+  function openBatch(url, batchSize, totalCount, waitTime, width, height) {
+    const remaining = totalCount - currentCount;
+    const toOpen = Math.min(batchSize, remaining);
+
+    for (let i = 0; i < toOpen; i++) {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'frame-wrapper';
+      wrapper.style.width = width + 'px';
+
+      const iframe = document.createElement('iframe');
+      iframe.src = url;
+      iframe.sandbox = "allow-scripts allow-same-origin";
+      iframe.style.width = width + 'px';
+      iframe.style.height = height + 'px';
+
+      const controls = document.createElement('div');
+      controls.className = 'controls';
+
+      const urlInput = document.createElement('input');
+      urlInput.type = 'text';
+      urlInput.value = url;
+      urlInput.title = "تغيير رابط الـ iframe";
+      urlInput.addEventListener('change', () => {
+        iframe.src = urlInput.value.trim();
+      });
+
+      const zoomInBtn = document.createElement('button');
+      zoomInBtn.textContent = '+';
+      zoomInBtn.title = 'تكبير النافذة';
+      zoomInBtn.addEventListener('click', () => {
+        let w = iframe.offsetWidth;
+        let h = iframe.offsetHeight;
+        iframe.style.width = (w + 20) + 'px';
+        iframe.style.height = (h + 15) + 'px';
+        wrapper.style.width = iframe.style.width;
+      });
+
+      const zoomOutBtn = document.createElement('button');
+      zoomOutBtn.textContent = '-';
+      zoomOutBtn.title = 'تصغير النافذة';
+      zoomOutBtn.addEventListener('click', () => {
+        let w = iframe.offsetWidth;
+        let h = iframe.offsetHeight;
+        if (w > 100 && h > 75) {
+          iframe.style.width = (w - 20) + 'px';
+          iframe.style.height = (h - 15) + 'px';
+          wrapper.style.width = iframe.style.width;
+        }
+      });
+
+      controls.appendChild(urlInput);
+      controls.appendChild(zoomInBtn);
+      controls.appendChild(zoomOutBtn);
+
+      wrapper.appendChild(iframe);
+      wrapper.appendChild(controls);
+
+      framesContainer.appendChild(wrapper);
+      currentCount++;
+    }
+
+    statusDiv.textContent = `تم فتح ${currentCount} من ${totalCount} نوافذ.`;
+
+    if (currentCount < totalCount) {
+      timer = setTimeout(() => {
+        openBatch(url, batchSize, totalCount, waitTime, width, height);
+      }, waitTime * 1000);
+    } else {
+      statusDiv.textContent = `تم فتح جميع النوافذ (${totalCount}) بنجاح.`;
+      closeAllBtn.style.display = 'inline-block';
+    }
+  }
+
+  startBtn.addEventListener('click', () => {
+    if (timer) {
+      clearTimeout(timer);
+      timer = null;
+    }
+    currentCount = 0;
+    framesContainer.innerHTML = '';
+    closeAllBtn.style.display = 'none';
+    statusDiv.textContent = '';
+
+    const url = document.getElementById('url').value.trim();
+    const totalCount = parseInt(document.getElementById('totalCount').value);
+    const batchSize = parseInt(document.getElementById('batchSize').value);
+    const waitTime = parseInt(document.getElementById('waitTime').value);
+    const width = parseInt(document.getElementById('iframeWidth').value);
+    const height = parseInt(document.getElementById('iframeHeight').value);
+
+    if (!url) {
+      statusDiv.textContent = 'يرجى إدخال رابط صحيح.';
+      return;
+    }
+    if (isNaN(totalCount) || totalCount < 1) {
+      statusDiv.textContent = 'عدد النوافذ يجب أن يكون على الأقل 1.';
+      return;
+    }
+    if (isNaN(batchSize) || batchSize < 1 || batchSize > 50) {
+      statusDiv.textContent = 'حجم الدفعة يجب أن يكون بين 1 و 50.';
+      return;
+    }
+    if (isNaN(waitTime) || waitTime < 1) {
+      statusDiv.textContent = 'مدة الانتظار يجب أن تكون على الأقل ثانية واحدة.';
+      return;
+    }
+    if (isNaN(width) || width < 50) {
+      statusDiv.textContent = 'عرض النافذة يجب أن يكون 50 بكسل على الأقل.';
+      return;
+    }
+    if (isNaN(height) || height < 50) {
+      statusDiv.textContent = 'ارتفاع النافذة يجب أن يكون 50 بكسل على الأقل.';
+      return;
+    }
+
+    openBatch(url, batchSize, totalCount, waitTime, width, height);
+  });
+
+  closeAllBtn.addEventListener('click', () => {
+    if (timer) {
+      clearTimeout(timer);
+      timer = null;
+    }
+    framesContainer.innerHTML = '';
+    currentCount = 0;
+    statusDiv.textContent = 'تم إغلاق جميع النوافذ.';
+    closeAllBtn.style.display = 'none';
+  });
+</script>
+</body>
+</html>
